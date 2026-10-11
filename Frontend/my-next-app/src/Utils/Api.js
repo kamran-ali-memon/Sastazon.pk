@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'http://sastazonpk-production.up.railway.app',
+    baseURL: 'https://sastazonpk-production.up.railway.app',
     withCredentials: true
 })
 
