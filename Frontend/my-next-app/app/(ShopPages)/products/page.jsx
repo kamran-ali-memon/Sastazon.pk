@@ -3,7 +3,8 @@
 
 import React, {
     useEffect,
-    useState
+    useState,
+    Suspense
 } from 'react'
 
 import { useSearchParams } from 'next/navigation'
@@ -11,30 +12,23 @@ import { useSearchParams } from 'next/navigation'
 import ProductCard from '../../../src/Components/ProductCard.jsx'
 import api from '../../../src/Utils/Api.js'
 
-export default function ProductsPage() {
+
+function ProductsContent() {
 
     const searchParams = useSearchParams()
 
     const [products, setProducts] = useState([])
-
     const [categories, setCategories] = useState(['All'])
-
     const [search, setSearch] = useState('')
-
     const [category, setCategory] = useState('All')
-
     const [sort, setSort] = useState('default')
-
     const [currentPage, setCurrentPage] = useState(1)
-
     const [pagination, setPagination] = useState(null)
-
     const [loading, setLoading] = useState(true)
-
     const [error, setError] = useState('')
 
 
-    // Get search and category from URL
+    // Read search and category from URL
     useEffect(() => {
 
         const searchFromUrl =
@@ -44,17 +38,13 @@ export default function ProductsPage() {
             searchParams.get('category') || ''
 
         setSearch(searchFromUrl)
-
-        if (categoryFromUrl) {
-            setCategory(categoryFromUrl)
-        }
-
+        setCategory(categoryFromUrl || 'All')
         setCurrentPage(1)
 
     }, [searchParams])
 
 
-    // Fetch products
+    // Fetch products from backend
     useEffect(() => {
 
         let isActive = true
@@ -72,9 +62,9 @@ export default function ProductsPage() {
                         params: {
                             paginate: 'true',
                             page: currentPage,
-                            search: search,
-                            category: category,
-                            sort: sort
+                            search,
+                            category,
+                            sort
                         }
                     }
                 )
@@ -93,7 +83,7 @@ export default function ProductsPage() {
                     ])
 
                     setPagination(
-                        response.data.pagination
+                        response.data.pagination || null
                     )
 
                 } else {
@@ -133,12 +123,7 @@ export default function ProductsPage() {
             isActive = false
         }
 
-    }, [
-        currentPage,
-        search,
-        category,
-        sort
-    ])
+    }, [currentPage, search, category, sort])
 
 
     return (
@@ -172,8 +157,6 @@ export default function ProductsPage() {
 
                     <div className="grid gap-4 md:grid-cols-[1fr_200px_200px]">
 
-                        {/* SEARCH */}
-
                         <div>
 
                             <label className="mb-2 block text-sm font-medium text-gray-300">
@@ -193,8 +176,6 @@ export default function ProductsPage() {
 
                         </div>
 
-
-                        {/* CATEGORY */}
 
                         <div>
 
@@ -227,8 +208,6 @@ export default function ProductsPage() {
 
                         </div>
 
-
-                        {/* SORT */}
 
                         <div>
 
@@ -339,8 +318,6 @@ export default function ProductsPage() {
 
                     <>
 
-                        {/* RESULT COUNT */}
-
                         <div className="mb-5 flex items-center justify-between">
 
                             <p className="text-sm text-gray-400">
@@ -364,8 +341,6 @@ export default function ProductsPage() {
                         </div>
 
 
-                        {/* PRODUCT GRID */}
-
                         {products.length > 0 ? (
 
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -382,8 +357,6 @@ export default function ProductsPage() {
                             </div>
 
                         ) : (
-
-                            /* EMPTY STATE */
 
                             <div className="rounded-2xl border border-white/10 bg-[#151515] px-6 py-16 text-center">
 
@@ -421,14 +394,14 @@ export default function ProductsPage() {
 
                         {/* PAGINATION */}
 
-                        {pagination?.totalProducts > 20 && pagination?.totalPages > 1 && (
+                        {pagination?.totalPages > 1 && (
 
                             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
 
                                 <button
                                     type="button"
                                     disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(currentPage - 1)}
+                                    onClick={() => setCurrentPage((prev) => prev - 1)}
                                     className="rounded-lg border border-white/10 bg-[#151515] px-5 py-2.5 text-sm font-medium text-white transition hover:border-[#e85d04] disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     Previous
@@ -437,7 +410,7 @@ export default function ProductsPage() {
                                 <p className="text-sm text-gray-400">
                                     Page{' '}
                                     <span className="font-semibold text-white">
-                                        {pagination.currentPage}
+                                        {pagination.currentPage || currentPage}
                                     </span>
                                     {' '}of{' '}
                                     <span className="font-semibold text-white">
@@ -448,7 +421,7 @@ export default function ProductsPage() {
                                 <button
                                     type="button"
                                     disabled={currentPage >= pagination.totalPages}
-                                    onClick={() => setCurrentPage(currentPage + 1)}
+                                    onClick={() => setCurrentPage((prev) => prev + 1)}
                                     className="rounded-lg border border-white/10 bg-[#151515] px-5 py-2.5 text-sm font-medium text-white transition hover:border-[#e85d04] disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     Next
@@ -467,5 +440,28 @@ export default function ProductsPage() {
         </main>
 
     )
+}
+
+
+export default function ProductsPage() {
+
+    return (
+
+        <Suspense
+            fallback={
+                <main className="min-h-screen bg-[#0b0b0b] flex items-center justify-center px-4 text-white">
+                    <p className="text-sm text-gray-400">
+                        Loading products...
+                    </p>
+                </main>
+            }
+        >
+
+            <ProductsContent />
+
+        </Suspense>
+
+    )
 
 }
+

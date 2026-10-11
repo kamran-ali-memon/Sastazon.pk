@@ -1,73 +1,95 @@
+
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '../../../src/Utils/Api.js'
 import toast from 'react-hot-toast'
 
-export default function VerifyOtp() {
+function VerifyOtpForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // URL se email get karein
     const email = searchParams.get('email')
 
     const [otp, setOtp] = useState('')
-    const [timer, setTimer] = useState(120) // 2 Minutes = 120 Seconds
+    const [timer, setTimer] = useState(120)
     const [canResend, setCanResend] = useState(false)
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
 
-    // 2 Minutes Timer Logic
     useEffect(() => {
         if (timer > 0) {
             const interval = setInterval(() => {
                 setTimer((prev) => prev - 1)
             }, 1000)
+
             return () => clearInterval(interval)
         } else {
             setCanResend(true)
         }
     }, [timer])
 
-    // // Minutes aur Seconds format (e.g. 01:59)
     const minutes = Math.floor(timer / 60)
     const seconds = timer % 60
+
     const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 
-    // 1. VERIFY OTP
     const handleVerify = async (e) => {
         e.preventDefault()
-        if (!otp) return setMessage('Please enter the OTP code.')
+
+        if (!email) {
+            setMessage('Email not found. Please register again.')
+            return
+        }
+
+        if (!otp) {
+            setMessage('Please enter the OTP code.')
+            return
+        }
 
         try {
             setLoading(true)
             setMessage('')
-            const res = await api.post('/api/auth/verify-otp', { email, otp })
 
-            toast(res.data?.message || 'OTP Verified! Please Login.')
+            const res = await api.post('/api/auth/verify-otp', {
+                email,
+                otp
+            })
+
+            toast.success(res.data?.message || 'OTP Verified! Please Login.')
             router.push('/login')
         } catch (error) {
-            setMessage(error.response?.data?.message || 'Invalid OTP code.')
+            setMessage(
+                error.response?.data?.message || 'Invalid OTP code.'
+            )
         } finally {
             setLoading(false)
         }
     }
 
-    // 2. RESEND OTP (Sirf Email Bhejenge)
     const handleResend = async () => {
+        if (!email) {
+            setMessage('Email not found. Please register again.')
+            return
+        }
+
         try {
             setLoading(true)
             setMessage('')
-            const res = await api.post('/api/auth/resend-otp', { email })
 
-            toast(res.data?.message || 'New OTP sent to your email!')
+            const res = await api.post('/api/auth/resend-otp', {
+                email
+            })
 
-            // Timer reset back to 2 minutes
+            toast.success(res.data?.message || 'New OTP sent to your email!')
+
             setTimer(120)
             setCanResend(false)
         } catch (error) {
-            setMessage(error.response?.data?.message || 'Failed to resend OTP.')
+            setMessage(
+                error.response?.data?.message || 'Failed to resend OTP.'
+            )
         } finally {
             setLoading(false)
         }
@@ -79,8 +101,12 @@ export default function VerifyOtp() {
 
                 <div className="text-center">
                     <h1 className="text-xl font-bold">Verify Email</h1>
+
                     <p className="text-xs text-gray-400 mt-1">
-                        OTP sent to: <span className="text-[#e85d04]">{email}</span>
+                        OTP sent to:{' '}
+                        <span className="text-[#e85d04]">
+                            {email || 'Email not found'}
+                        </span>
                     </p>
                 </div>
 
@@ -92,15 +118,21 @@ export default function VerifyOtp() {
 
                 <form onSubmit={handleVerify} className="space-y-4">
                     <div>
-                        <label className="block text-xs text-gray-400 mb-2">Enter 6-Digit OTP</label>
+                        <label className="block text-xs text-gray-400 mb-2">
+                            Enter 6-Digit OTP
+                        </label>
+
                         <input
-                            type="number"
-                            onInput={(e) => {
-                            if (e.target.value.length > 6) {
-                            e.target.value = e.target.value.slice(0, 6);}}}
-                            placeholder = "123456"
-                            value = { otp }
-                            onChange = {(e) => setOtp(e.target.value)}
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={6}
+                            placeholder="123456"
+                            value={otp}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '')
+                                setOtp(value.slice(0, 6))
+                            }}
                             className="w-full text-center tracking-[0.5em] text-lg bg-[#0b0b0b] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-[#e85d04]"
                         />
                     </div>
@@ -117,20 +149,40 @@ export default function VerifyOtp() {
                 <div className="text-center text-xs text-gray-400 pt-2 border-t border-white/5">
                     {canResend ? (
                         <button
+                            type="button"
                             onClick={handleResend}
                             disabled={loading}
-                            className="text-[#e85d04] font-medium hover:underline"
+                            className="text-[#e85d04] font-medium hover:underline disabled:opacity-50"
                         >
                             Resend OTP
                         </button>
                     ) : (
                         <p>
-                            Resend available in <span className="text-white font-mono">{formattedTime}</span>
+                            Resend available in{' '}
+                            <span className="text-white font-mono">
+                                {formattedTime}
+                            </span>
                         </p>
                     )}
                 </div>
 
             </div>
         </main>
+    )
+}
+
+export default function VerifyOtp() {
+    return (
+        <Suspense
+            fallback={
+                <main className="min-h-screen bg-[#0b0b0b] text-white flex items-center justify-center p-4">
+                    <p className="text-sm text-gray-400">
+                        Loading verification page...
+                    </p>
+                </main>
+            }
+        >
+            <VerifyOtpForm />
+        </Suspense>
     )
 }
